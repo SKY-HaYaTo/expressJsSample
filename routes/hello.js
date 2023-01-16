@@ -268,9 +268,6 @@ router.post('/delete',(req,res,next)=>{
 
   //リクエストで送信された各情報を変数に格納する。
   const inputId=req.body.id;
-  const inputName=req.body.name;
-  const inputMail=req.body.mail;
-  const inputAge=req.body.age;
 
   //DELETEクエリを生成する。
   const text='delete from mydata where id = $1';
@@ -291,6 +288,75 @@ router.post('/delete',(req,res,next)=>{
       client.release();
     }
   });
+});
+
+//検索「find」ページを表示する処理
+router.get('/find',(req,res,next)=>{
+  var pool = new pg.Pool({ //【★大事★】poolクラスをnewする。
+    database: 'expressDb', //PostgreSQLに作成したデータベース名
+    user: 'postgres', //ユーザー名はデフォルト以外を利用している人は適宜変更してください。
+    password: 'postgres', //PASSWORDにはPostgreSQLをインストールした際に設定したパスワードを記述。
+    host: 'localhost',
+    port: 5432,
+  });
+
+  pool.connect( function(err, client) {
+    if (err) {
+      console.log(err);
+    } else {
+      client.query('SELECT * FROM mydata', function (err, result) {
+        res.render('hello/find', {
+          title: 'Express',
+          find:'',
+          content: '検索条件を入力してください。',
+          mydata:result.rows
+        });
+        console.log(result); //コンソール上での確認用なため、この1文は必須ではない。
+      });
+    }
+  });
+});
+
+//検索ページ「find.ejs」の検索フォームにテキストを入力して結果を取得する処理
+router.post('/find',(req,res,next)=>{
+
+  var pool = new pg.Pool({ //【★大事★】poolクラスをnewする。
+    database: 'expressDb', //PostgreSQLに作成したデータベース名
+    user: 'postgres', //ユーザー名はデフォルト以外を利用している人は適宜変更してください。
+    password: 'postgres', //PASSWORDにはPostgreSQLをインストールした際に設定したパスワードを記述。
+    host: 'localhost',
+    port: 5432,
+  });
+
+  //リクエストパラメーター「find」から値を取得する。
+  var findInputText = req.body.find;
+
+  //リクエストパラメーターで取得した変数「findInputText」を追加したSELECTクエリを生成する。
+  const text='select * from mydata where '+ findInputText;
+  console.log(text);
+  
+  pool.connect(function(err,client){
+    try{
+      //トランザクションを開始する。
+      client.query('START TRANSACTION');
+      //クエリを実行する。第一引数にformから取得したテキストを追加したSELECTクエリ、第二引数に関数を追加。
+      client.query(text,function(err,result){
+        res.render('hello/find',{
+          title:'hello/find',
+          find:findInputText,
+          content:'検索条件：'+findInputText+'のレコード',
+          mydata:result.rows
+        });
+      });
+      //処理をコミットする。
+      client.query('COMMIT');
+    }catch(err){
+      client.rollback();
+    }finally{
+      client.release();
+    }
+  });
+
 });
 
 /*
